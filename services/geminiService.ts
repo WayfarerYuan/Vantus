@@ -301,3 +301,28 @@ export const generatePodcastAudio = async (lines: string[]): Promise<string> => 
   if (!base64Audio) throw new Error("Failed to generate audio");
   return base64Audio;
 };
+
+// --- Cognitive Briefing ---
+export const generateCognitiveBriefing = async (
+  topic: string, 
+  activity: string, // "完成单元测试" or "完成结业评估"
+  scoreDesc: string // "表现完美", "有些许疏漏", etc.
+): Promise<string> => {
+  const modelId = "gemini-3-flash-preview";
+  try {
+    const response = await ai.models.generateContent({
+      model: modelId,
+      contents: `User just finished ${activity} on "${topic}". Performance: ${scoreDesc}.
+      Task: Write a *very short* (1-2 sentences, max 40 words) cognitive briefing for their profile dashboard.
+      Tone: Insightful, elite, futuristic, "Guardian AI" style. Use data metaphors.
+      Language: Simplified Chinese.`,
+      config: {
+        responseMimeType: "text/plain",
+      }
+    });
+    return response.text?.trim() || "认知模型正在校准中...";
+  } catch (e) {
+    console.error("Briefing Gen Failed", e);
+    return "神经连接暂时中断，数据上传中...";
+  }
+};

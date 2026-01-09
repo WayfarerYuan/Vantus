@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { BookOpen, User, ChevronLeft, Layers, ArrowRight, Loader2, BookMarked, Trophy, Zap, Repeat, Check, BarChart3, Search, Play, Compass, Cpu, RefreshCw, Sparkles, BrainCircuit, Sun, Moon } from 'lucide-react';
-import { generateSyllabus, generateLessonContent, generatePodcastAudio, generateLessonImage, generateFinalExam } from './services/geminiService';
-import { Syllabus, LessonContent, AppScreen, LessonMode, UnitType, SavedCourse, UnitContent, ExamContent } from './types';
+import { BookOpen, User, ChevronLeft, Layers, ArrowRight, Loader2, BookMarked, Trophy, Zap, Repeat, Check, BarChart3, Search, Play, Compass, Cpu, RefreshCw, Sparkles, BrainCircuit, Sun, Moon, Radar } from 'lucide-react';
+import { generateSyllabus, generateLessonContent, generatePodcastAudio, generateLessonImage, generateFinalExam, generateCognitiveBriefing } from './services/geminiService';
+import { Syllabus, LessonContent, AppScreen, LessonMode, UnitType, SavedCourse, UnitContent, ExamContent, UserStats, UserProfileData } from './types';
 import { AudioPlayer } from './components/AudioPlayer';
 
 const STORAGE_KEY = 'nexus_courses_v1';
+const PROFILE_KEY = 'nexus_profile_v1';
 
 // --- Suggestion Logic (Localized) ---
 const DEFAULT_TOPICS = ['宏观经济周期', '生成式 AI 架构', '认知心理学'];
@@ -147,6 +148,24 @@ const saveCourse = (syllabus: Syllabus, contentMap: Record<string, UnitContent>)
   }
 };
 
+const getProfile = (): UserProfileData => {
+    try {
+        const d = localStorage.getItem(PROFILE_KEY);
+        if (d) return JSON.parse(d);
+    } catch {}
+    return {
+        stats: { depth: 0, breadth: 0, acuity: 0, focus: 0, retention: 0, creativity: 0 },
+        briefing: "正在等待首次校准...",
+        briefingTimestamp: 0
+    };
+};
+
+const saveProfile = (p: UserProfileData) => {
+    try {
+        localStorage.setItem(PROFILE_KEY, JSON.stringify(p));
+    } catch {}
+};
+
 // --- Task Interface for UI ---
 interface GenTask {
     id: string;
@@ -182,9 +201,11 @@ const App = () => {
 
   const [flashcardFlipped, setFlashcardFlipped] = useState<Record<number, boolean>>({});
   const [savedCourses, setSavedCourses] = useState<SavedCourse[]>([]);
+  const [userProfile, setUserProfile] = useState<UserProfileData>(getProfile());
 
   useEffect(() => {
     setSavedCourses(getSavedCourses());
+    setUserProfile(getProfile());
   }, [screen]);
 
   // --- Theme Helper ---
@@ -224,6 +245,42 @@ const App = () => {
       setGenTasks(prev => prev.map(t => t.id === id ? { ...t, status } : t));
   };
 
+  // Helper to update stats and briefing
+  const handleCognitiveUpdate = async (type: 'QUIZ'|'EXAM', score: number, total: number, topicName: string) => {
+      const current = getProfile();
+      
+      // 1. Update Stats
+      const newStats = { ...current.stats };
+      
+      // Depth & Breadth
+      newStats.depth += 1;
+      // Rough calc for breadth (mock)
+      if (Math.random() > 0.7) newStats.breadth += 1; 
+
+      // Acuity (Moving Average approx)
+      const performance = (score / total) * 100;
+      if (newStats.acuity === 0) newStats.acuity = performance;
+      else newStats.acuity = Math.round((newStats.acuity * 0.8) + (performance * 0.2));
+
+      // Focus (Boost on completion)
+      newStats.focus = Math.min(100, newStats.focus + 5);
+
+      // Retention (Boost on good score)
+      if (performance > 80) newStats.retention = Math.min(100, newStats.retention + 3);
+
+      // 2. Generate Briefing (Async)
+      let briefing = current.briefing;
+      if (Date.now() - current.briefingTimestamp > 5 * 60 * 1000) { // Limit updates to every 5 mins
+          try {
+              briefing = await generateCognitiveBriefing(topicName, type === 'QUIZ' ? '单元测试' : '结业挑战', performance > 80 ? '卓越' : '良好');
+          } catch(e) { console.error(e); }
+      }
+
+      const newData = { stats: newStats, briefing, briefingTimestamp: Date.now() };
+      setUserProfile(newData);
+      saveProfile(newData);
+  };
+
   const handleStartCourse = async (selectedTopic?: string) => {
     const finalTopic = selectedTopic || topic;
     if (!finalTopic.trim()) return;
@@ -237,6 +294,12 @@ const App = () => {
     
     setGenTasks([{ id: 'syllabus', label: '初始化知识架构 (Initializing Knowledge Architecture)', status: 'loading' }]);
     
+    // Update creativity stat on creation
+    const p = getProfile();
+    p.stats.creativity += 10;
+    saveProfile(p);
+    setUserProfile(p);
+
     try {
       // 1. Generate Syllabus
       const syllabusData = await generateSyllabus(finalTopic);
@@ -361,6 +424,28 @@ const App = () => {
     } finally {
       setIsAudioLoading(false);
     }
+  };
+
+  const handleQuizSubmit = () => {
+      if (!syllabus) return;
+      setIsQuizSubmitted(true);
+      
+      const unitId = syllabus.chapters[currentChapterIdx].units[currentUnitIdx].id;
+      const content = courseContent[unitId] as LessonContent;
+      const isCorrect = content.quiz.correctOptionId === quizSelectedId;
+      
+      handleCognitiveUpdate('QUIZ', isCorrect ? 1 : 0, 1, syllabus.topic);
+  };
+
+  const handleExamSubmit = () => {
+      if (!syllabus) return;
+      setIsExamSubmitted(true);
+      
+      const unitId = syllabus.chapters[currentChapterIdx].units[currentUnitIdx].id;
+      const content = courseContent[unitId] as ExamContent;
+      const score = content.questions.reduce((acc, q, i) => acc + (examAnswers[i] === q.correctOptionId ? 1 : 0), 0);
+      
+      handleCognitiveUpdate('EXAM', score, content.questions.length, syllabus.topic);
   };
 
   // --- Renderers ---
@@ -760,7 +845,7 @@ const App = () => {
                    </div>
                 </div>
                 {!isQuizSubmitted ? (
-                  <button onClick={() => setIsQuizSubmitted(true)} disabled={!quizSelectedId} className={`w-full py-4 rounded-lg ${isDark ? 'bg-white text-black' : 'bg-slate-900 text-white'} font-bold shadow-lg disabled:opacity-50 hover:scale-[1.01] transition-all`}>验证答案</button>
+                  <button onClick={handleQuizSubmit} disabled={!quizSelectedId} className={`w-full py-4 rounded-lg ${isDark ? 'bg-white text-black' : 'bg-slate-900 text-white'} font-bold shadow-lg disabled:opacity-50 hover:scale-[1.01] transition-all`}>验证答案</button>
                 ) : (
                   <div className="animate-fade-up">
                       <div className={`${isDark ? 'bg-zinc-900' : 'bg-slate-100'} p-6 rounded-lg border ${t.border} text-sm ${t.textSecondary} mb-6 leading-relaxed`}>
@@ -810,7 +895,7 @@ const App = () => {
                  </div>
              ))}
              {!isExamSubmitted ? (
-                 <button onClick={() => setIsExamSubmitted(true)} disabled={Object.keys(examAnswers).length < content.questions.length} className={`w-full py-4 ${isDark ? 'bg-white text-black' : 'bg-slate-900 text-white'} rounded-lg font-bold shadow-lg disabled:opacity-50 hover:scale-[1.01] transition-all`}>提交评估</button>
+                 <button onClick={handleExamSubmit} disabled={Object.keys(examAnswers).length < content.questions.length} className={`w-full py-4 ${isDark ? 'bg-white text-black' : 'bg-slate-900 text-white'} rounded-lg font-bold shadow-lg disabled:opacity-50 hover:scale-[1.01] transition-all`}>提交评估</button>
              ) : (
                  <div className={`text-center p-8 ${t.cardSolid} rounded-2xl space-y-4 border ${t.border} animate-scale-in`}>
                      <div className={`text-5xl font-light ${t.text}`}>{score} / {content.questions.length}</div>
@@ -846,32 +931,175 @@ const App = () => {
       </div>
   );
 
+  const RadarChart = ({ stats }: { stats: UserStats }) => {
+      // Scale factors
+      const maxVal = 100;
+      const size = 120;
+      const center = size / 2;
+      const radius = size * 0.4;
+      
+      const metrics = [
+          { label: '深度', val: stats.depth * 5 }, // Scale depth
+          { label: '广度', val: stats.breadth * 10 },
+          { label: '敏锐', val: stats.acuity },
+          { label: '专注', val: stats.focus },
+          { label: '记忆', val: stats.retention },
+          { label: '创造', val: stats.creativity },
+      ];
+
+      const getPoints = (scale: number) => {
+          return metrics.map((m, i) => {
+              const angle = (Math.PI * 2 * i) / metrics.length - Math.PI / 2;
+              const val = Math.min(Math.max(m.val, 5), maxVal); // Min 5 to show shape
+              const r = radius * (val / maxVal) * scale;
+              return `${center + Math.cos(angle) * r},${center + Math.sin(angle) * r}`;
+          }).join(' ');
+      };
+
+      return (
+          <div className="relative w-full h-full flex items-center justify-center">
+              <svg width={size} height={size} className="overflow-visible">
+                  {/* Background Grid - Added opacity to always show structure */}
+                  <polygon points={getPoints(1)} className={`${isDark ? 'stroke-zinc-800' : 'stroke-slate-200'} fill-transparent`} strokeWidth="1" />
+                  <polygon points={getPoints(0.8)} className={`${isDark ? 'stroke-zinc-800/60' : 'stroke-slate-200/60'} fill-transparent`} strokeWidth="0.5" strokeDasharray="2 2" />
+                  <polygon points={getPoints(0.6)} className={`${isDark ? 'stroke-zinc-800' : 'stroke-slate-200'} fill-transparent`} strokeWidth="1" />
+                  <polygon points={getPoints(0.4)} className={`${isDark ? 'stroke-zinc-800/60' : 'stroke-slate-200/60'} fill-transparent`} strokeWidth="0.5" strokeDasharray="2 2" />
+                  <polygon points={getPoints(0.2)} className={`${isDark ? 'stroke-zinc-800' : 'stroke-slate-200'} fill-transparent`} strokeWidth="1" />
+                  
+                  {/* Axis Lines - Connecting center to corners */}
+                  {metrics.map((_, i) => {
+                      const angle = (Math.PI * 2 * i) / metrics.length - Math.PI / 2;
+                      const x = center + Math.cos(angle) * radius;
+                      const y = center + Math.sin(angle) * radius;
+                      return (
+                          <line 
+                            key={`axis-${i}`} 
+                            x1={center} 
+                            y1={center} 
+                            x2={x} 
+                            y2={y} 
+                            className={`${isDark ? 'stroke-zinc-800/50' : 'stroke-slate-200/50'}`} 
+                            strokeWidth="1" 
+                          />
+                      );
+                  })}
+
+                  {/* Level Connectors (Horizontal lines between axes at each level) */}
+                  {[0.2, 0.4, 0.6, 0.8, 1].map((scale, levelIdx) => (
+                      <path
+                        key={`level-${levelIdx}`}
+                        d={metrics.map((_, i) => {
+                            const angle = (Math.PI * 2 * i) / metrics.length - Math.PI / 2;
+                            const r = radius * scale;
+                            const x = center + Math.cos(angle) * r;
+                            const y = center + Math.sin(angle) * r;
+                            return (i === 0 ? 'M' : 'L') + `${x},${y}`;
+                        }).join(' ') + 'Z'}
+                        className={`${isDark ? 'stroke-zinc-800/30' : 'stroke-slate-200/30'} fill-transparent`}
+                        strokeWidth="0.5"
+                      />
+                  ))}
+
+                  {/* Data Shape - Use values from stats */}
+                  <g className="group">
+                    <polygon 
+                        points={metrics.map((m, i) => {
+                            const angle = (Math.PI * 2 * i) / metrics.length - Math.PI / 2;
+                            const val = Math.min(Math.max(m.val, 5), maxVal);
+                            const r = radius * (val / maxVal);
+                            return `${center + Math.cos(angle) * r},${center + Math.sin(angle) * r}`;
+                        }).join(' ')}
+                        className={`${t.accentBg} fill-current opacity-20 group-hover:opacity-30 transition-opacity duration-300`} 
+                    />
+                    <polygon 
+                        points={metrics.map((m, i) => {
+                            const angle = (Math.PI * 2 * i) / metrics.length - Math.PI / 2;
+                            const val = Math.min(Math.max(m.val, 5), maxVal);
+                            const r = radius * (val / maxVal);
+                            return `${center + Math.cos(angle) * r},${center + Math.sin(angle) * r}`;
+                        }).join(' ')}
+                        className={`${t.accent} stroke-current fill-transparent group-hover:stroke-[2px] transition-all duration-300`} 
+                        strokeWidth="1.5"
+                        strokeLinejoin="round"
+                    />
+                  </g>
+                  
+                  {/* Labels - Simplified logic for positioning */}
+                  {metrics.map((m, i) => {
+                      const angle = (Math.PI * 2 * i) / metrics.length - Math.PI / 2;
+                      const r = radius + 15;
+                      const x = center + Math.cos(angle) * r;
+                      const y = center + Math.sin(angle) * r;
+                      return (
+                          <text 
+                            key={i} 
+                            x={x} 
+                            y={y} 
+                            fontSize="9" 
+                            textAnchor="middle" 
+                            dominantBaseline="middle" 
+                            className={`${isDark ? 'fill-zinc-400' : 'fill-slate-600'} font-medium tracking-wider`}
+                          >
+                              {m.label}
+                          </text>
+                      )
+                  })}
+              </svg>
+          </div>
+      );
+  }
+
   const renderProfile = () => (
       <div className={`flex flex-col h-full ${t.bg} px-6 pt-12 relative overflow-hidden`}>
-           
-           <div className="flex items-center space-x-4 mb-10 animate-fade-up relative z-10">
+           <div className="flex items-center space-x-4 mb-8 animate-fade-up relative z-10">
                 <div className={`w-16 h-16 ${t.cardSolid} rounded-full flex items-center justify-center ${t.textMuted} border ${t.border}`}>
                     <User size={24} />
                 </div>
                 <div>
                     <h2 className={`text-lg font-medium ${t.text} tracking-tight`}>探索者</h2>
-                    <p className={`text-xs ${t.textSecondary} font-mono uppercase`}>标准权限</p>
+                    <p className={`text-xs ${t.textSecondary} font-mono uppercase`}>Level {Math.floor((userProfile.stats.depth + userProfile.stats.breadth) / 2) + 1}</p>
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 mb-8 animate-fade-up delay-100 relative z-10">
-                <div className={`${t.cardSolid} p-5 rounded-xl flex flex-col justify-between h-28 border ${t.border}`}>
-                    <BarChart3 className={t.textSecondary} size={16} />
-                    <div>
-                        <div className={`text-2xl font-light ${t.text}`}>{savedCourses.length}</div>
-                        <div className={`text-[10px] font-bold ${t.textSecondary} uppercase tracking-widest`}>研习项目</div>
+            {/* AI Briefing Card */}
+            <div className={`mb-6 p-5 ${t.cardSolid} rounded-xl border ${t.border} relative overflow-hidden animate-fade-up delay-100 group`}>
+                <div className={`absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity ${t.text}`}>
+                    <Sparkles size={48} strokeWidth={1} />
+                </div>
+                <div className="flex items-center space-x-2 mb-3">
+                    <div className={`w-1.5 h-1.5 ${t.accentBg} rounded-full animate-pulse`}></div>
+                    <span className={`text-[10px] font-bold ${t.textMuted} uppercase tracking-widest`}>认知简报</span>
+                </div>
+                <p className={`text-xs ${t.text} font-light leading-relaxed`}>
+                    {userProfile.briefing}
+                </p>
+                <div className={`mt-3 text-[9px] ${t.textMuted} font-mono`}>
+                    更新于: {new Date(userProfile.briefingTimestamp).toLocaleTimeString()}
+                </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 mb-8 animate-fade-up delay-200 relative z-10 flex-1">
+                {/* Radar Chart Card */}
+                <div className={`${t.cardSolid} p-4 rounded-xl flex flex-col items-center justify-center h-full border ${t.border}`}>
+                    <div className="w-full aspect-square relative">
+                        <RadarChart stats={userProfile.stats} />
                     </div>
                 </div>
-                <div className={`${t.cardSolid} p-5 rounded-xl flex flex-col justify-between h-28 border ${t.border}`}>
-                    <Trophy className={t.textSecondary} size={16} />
-                    <div>
-                        <div className={`text-2xl font-light ${t.text}`}>12</div>
-                        <div className={`text-[10px] font-bold ${t.textSecondary} uppercase tracking-widest`}>认知等级</div>
+
+                <div className="flex flex-col gap-3 h-full">
+                    <div className={`${t.cardSolid} p-4 rounded-xl flex flex-col justify-center flex-1 border ${t.border}`}>
+                        <BarChart3 className={`${t.textSecondary} mb-2`} size={16} />
+                        <div>
+                            <div className={`text-2xl font-light ${t.text}`}>{userProfile.stats.breadth}</div>
+                            <div className={`text-[9px] font-bold ${t.textSecondary} uppercase tracking-widest`}>领域跨度</div>
+                        </div>
+                    </div>
+                    <div className={`${t.cardSolid} p-4 rounded-xl flex flex-col justify-center flex-1 border ${t.border}`}>
+                        <Trophy className={`${t.textSecondary} mb-2`} size={16} />
+                        <div>
+                            <div className={`text-2xl font-light ${t.text}`}>{userProfile.stats.depth}</div>
+                            <div className={`text-[9px] font-bold ${t.textSecondary} uppercase tracking-widest`}>深度单元</div>
+                        </div>
                     </div>
                 </div>
             </div>

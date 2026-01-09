@@ -79,3 +79,19 @@ export interface SavedCourse {
   syllabus: Syllabus;
   contentMap: Record<string, UnitContent>;
 }
+
+// Profile & Stats
+export interface UserStats {
+  depth: number;      // 深度: Unit completed count
+  breadth: number;    // 广度: Unique topics count
+  acuity: number;     // 敏锐: Quiz avg score (0-100)
+  focus: number;      // 专注: Session consistency (0-100)
+  retention: number;  // 记忆: Review consistency (0-100)
+  creativity: number; // 创造: Courses created count * 10
+}
+
+export interface UserProfileData {
+  stats: UserStats;
+  briefing: string;
+  briefingTimestamp: number;
+}
