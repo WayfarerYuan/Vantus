@@ -1,9 +1,9 @@
 {
-    "name": "vantus",
-    "main": "dist/index.html",
-    "assets": {
-      "directory": "./dist",
-      "binding": "ASSETS"
-    },
-    "compatibility_date": "2024-09-23"
-  }
+  "name": "vantus",
+  "main": "dist/index.html",
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS"
+  },
+  "compatibility_date": "2024-09-23"
+}
