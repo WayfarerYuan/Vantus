@@ -28,6 +28,9 @@ const cleanMarkdown = (text: string): string => {
   // Sometimes JSON responses contain double-escaped newlines which breaks Markdown parsing.
   clean = clean.replace(/\\n/g, "\n");
 
+  // 4. Remove [object Object] artifacts if any
+  clean = clean.replace(/,\[object Object\],/g, "").replace(/\[object Object\]/g, "");
+
   return clean.trim();
 };
 
@@ -99,14 +102,19 @@ export const generateLessonContent = async (topic: string, unitTitle: string): P
 
   const prompt = `
     Task: Create engaging content for the lesson "${unitTitle}" in the course "${topic}".
-    **IMPORTANT: OUTPUT ALL CONTENT IN SIMPLIFIED CHINESE (MANDARIN). Don't include any text in the image.**
+    **IMPORTANT: OUTPUT ALL CONTENT IN SIMPLIFIED CHINESE (MANDARIN).**
 
     1. **Deep Dive (Article)**: 
        - Pure Markdown format. 
        - Use ## for sections. 
        - Tone: Insightful, conversational, like a Medium article or high-quality newsletter. 
+       - **USE GOOGLE SEARCH TOOL to find real-world examples, stats, or quotes.**
+       - **CITATION REQUIREMENT**: 
+         - When you use a search result, you MUST add a citation mark like [Source 1], [Source 2] at the end of the sentence.
+         - **USE ONLY INTEGERS** for the Source ID (e.g., [Source 1], NOT [Source 1.1]).
+         - The integer must correspond to the order of the search results you used.
        - **Strictly NO code blocks (\`\`\`) wrapping the output.** Just raw text.
-       - Ensure newlines are actual line breaks.
+       - **Do NOT output text like "[object Object]".**
        - Language: Simplified Chinese.
        
     2. **Podcast Script**: 

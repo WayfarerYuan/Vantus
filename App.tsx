@@ -747,12 +747,66 @@ const App = () => {
                     <ReactMarkdown components={{
                         h1: (p) => <h1 className={`text-xl mt-8 mb-4 font-medium tracking-tight ${t.text}`} {...p} />,
                         h2: (p) => <h2 className={`text-lg mt-10 mb-4 ${t.text} font-medium flex items-center`} {...p}><span className={`w-1 h-4 ${t.accentBg} mr-3`}></span>{p.children}</h2>, 
-                        p: (p) => <p className="mb-6 font-light" {...p} />,
+                        p: (p) => {
+                            // Custom rendering to detect citations [Source X] or [Source X.Y]
+                            const content = String(p.children);
+                            if (content.includes('[Source')) {
+                                const parts = content.split(/(\[Source \d+(?:\.\d+)?\])/g);
+                                return (
+                                    <p className="mb-6 font-light">
+                                        {parts.map((part, i) => {
+                                            const match = part.match(/\[Source (\d+)(?:\.\d+)?\]/);
+                                            if (match) {
+                                                const idx = parseInt(match[1]) - 1; // 0-based
+                                                const source = lesson.sources?.[idx];
+                                                if (!source) return null;
+                                                
+                                                return (
+                                                    <span key={i} className="relative inline-block group mx-1 align-super text-[10px]">
+                                                        <a href={source.uri} target="_blank" rel="noreferrer" className={`${t.accent} hover:underline cursor-pointer font-bold px-1 rounded bg-emerald-500/10`}>
+                                                            {idx + 1}
+                                                        </a>
+                                                        {/* Hover Card */}
+                                                        <div className={`absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-3 rounded-lg ${isDark ? 'bg-zinc-900 border-zinc-700' : 'bg-white border-slate-200'} border shadow-xl opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 text-left`}>
+                                                            <div className="text-xs font-bold truncate mb-1 text-emerald-500">引用来源</div>
+                                                            <div className={`text-xs font-medium mb-1 line-clamp-2 ${t.text}`}>{source.title}</div>
+                                                            <div className={`text-[10px] ${t.textMuted} truncate`}>{new URL(source.uri).hostname}</div>
+                                                            {/* Arrow Down */}
+                                                            <div className={`absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent ${isDark ? 'border-t-zinc-900' : 'border-t-white'}`}></div>
+                                                        </div>
+                                                    </span>
+                                                );
+                                            }
+                                            return part;
+                                        })}
+                                    </p>
+                                )
+                            }
+                            return <p className="mb-6 font-light" {...p} />
+                        },
                         strong: (p) => <span className={`font-medium ${t.text}`} {...p} />, 
                     }}>
                     {lesson.deepDive}
                     </ReactMarkdown>
                 </article>
+
+                {lesson.sources && lesson.sources.length > 0 && (
+                    <div className={`mt-12 mb-8 pt-8 border-t ${t.border}`}>
+                        <h3 className={`text-[10px] font-bold ${t.textMuted} uppercase tracking-widest mb-4`}>参考资料</h3>
+                        <div className="grid gap-2">
+                            {lesson.sources.map((s, i) => (
+                                <a key={i} href={s.uri} target="_blank" rel="noreferrer" className={`flex items-center space-x-3 p-3 rounded-lg ${t.card} border border-transparent hover:border-zinc-700 transition-all group`}>
+                                    <div className={`w-5 h-5 rounded flex items-center justify-center text-[10px] font-mono ${t.accentBg} text-white`}>{i + 1}</div>
+                                    <div className="flex-1 min-w-0">
+                                        <div className={`text-xs font-medium truncate ${t.textSecondary} group-hover:${t.text}`}>{s.title}</div>
+                                        <div className={`text-[10px] ${t.textMuted} truncate`}>{s.uri}</div>
+                                    </div>
+                                    <ArrowRight size={12} className={`${t.textMuted} opacity-0 group-hover:opacity-100 transition-opacity`} />
+                                </a>
+                            ))}
+                        </div>
+                    </div>
+                )}
 
                 {lesson.flashcards && lesson.flashcards.length > 0 && (
                     <div className={`mt-16 mb-8 border-t ${t.border} pt-10`}>
