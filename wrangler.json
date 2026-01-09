@@ -1,8 +1,7 @@
 {
   "name": "vantus",
   "assets": {
-    "directory": "./dist",
-    "binding": "ASSETS"
+    "directory": "./dist"
   },
   "compatibility_date": "2024-09-23"
 }
