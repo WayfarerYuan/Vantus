@@ -466,8 +466,8 @@ const App = () => {
                      </div>
                  </div>
                  <div>
-                    <h1 className={`text-5xl font-extralight tracking-[0.1em] ${t.text}`}>Vantus</h1>
-                    <p className={`${t.textSecondary} text-[12px] uppercase tracking-[0.2em] mt-3 font-medium`}>知识浩瀚，AI 领航</p>
+                    <h1 className={`text-5xl font-serif-display font-medium tracking-tight ${t.text}`}>Vantus</h1>
+                    <p className={`${t.textSecondary} text-[10px] uppercase tracking-[0.3em] mt-3 font-medium`}>知识浩瀚 · AI 领航</p>
                  </div>
              </div>
 
