@@ -1,6 +1,5 @@
 {
   "name": "vantus",
-  "main": "dist/index.html",
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS"
