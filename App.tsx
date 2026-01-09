@@ -522,6 +522,8 @@ const App = () => {
                 <span>INTELLIGENCE</span>
                 <span className={t.accent}>×</span>
                 <span>KNOWLEDGE</span>
+                <span className={t.accent}>×</span>
+                <span>SERVICES</span>
             </div>
             <p className={`text-[8px] ${t.textMuted} font-mono tracking-widest opacity-50`}>POWERED BY GEMINI 3.0 PRO</p>
         </div>
