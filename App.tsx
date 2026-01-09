@@ -516,8 +516,14 @@ const App = () => {
         </div>
         
         {/* Simple Footer Branding */}
-        <div className="absolute bottom-6 w-full text-center pointer-events-none">
-            <p className={`text-[9px] ${t.textMuted} font-mono`}>POWERED BY GEMINI 3.0 FLASH</p>
+        <div className="absolute bottom-8 w-full text-center pointer-events-none flex flex-col items-center space-y-2">
+            <div className={`flex items-center justify-center space-x-2 text-[10px] ${t.textSecondary} font-mono tracking-[0.2em] opacity-80`}>
+                <Cpu size={12} className={t.accent} />
+                <span>INTELLIGENCE</span>
+                <span className={t.accent}>×</span>
+                <span>KNOWLEDGE</span>
+            </div>
+            <p className={`text-[8px] ${t.textMuted} font-mono tracking-widest opacity-50`}>POWERED BY GEMINI 3.0 PRO</p>
         </div>
       </div>
   );
