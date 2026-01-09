@@ -37,7 +37,7 @@ export const generateSyllabus = async (topic: string): Promise<Syllabus> => {
   
   const response = await ai.models.generateContent({
     model: modelId,
-    contents: `为主题：“${topic}” 设计一个引人入胜的微课路径。
+    contents: `为主题：“${topic}” 设计一个引人入胜的知识学习路径。
     
     【设计原则】：
     1. **面向精英**：像《哈佛商业评论》或《经济学人》的深度专栏目录一样吸引人。

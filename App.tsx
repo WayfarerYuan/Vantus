@@ -518,14 +518,14 @@ const App = () => {
         {/* Simple Footer Branding */}
         <div className="absolute bottom-8 w-full text-center pointer-events-none flex flex-col items-center space-y-2">
             <div className={`flex items-center justify-center space-x-2 text-[10px] ${t.textSecondary} font-mono tracking-[0.2em] opacity-80`}>
-                <Cpu size={12} className={t.accent} />
+                <Sparkles size={12} className={t.accent} />
+                <span>CREATION</span>
+                <span className={t.accent}>×</span>
                 <span>INTELLIGENCE</span>
-                <span className={t.accent}>×</span>
-                <span>KNOWLEDGE</span>
-                <span className={t.accent}>×</span>
-                <span>SERVICES</span>
             </div>
-            <p className={`text-[8px] ${t.textMuted} font-mono tracking-widest opacity-50`}>POWERED BY GEMINI 3.0 PRO</p>
+            <p className={`text-[8px] ${t.textMuted} font-mono tracking-widest opacity-50 uppercase`}>
+                Powered by Intelligent Products & Services
+            </p>
         </div>
       </div>
   );
@@ -702,14 +702,16 @@ const App = () => {
                                         </div>
 
                                         {/* Back Face - The "Data" */}
-                                        <div className={`absolute inset-0 ${isDark ? 'bg-zinc-800 border-zinc-700' : 'bg-white border-slate-200'} rounded-2xl border flex flex-col items-center justify-center p-6 backface-hidden rotate-y-180 shadow-xl overflow-hidden relative`}>
+                                        <div className={`absolute inset-0 ${isDark ? 'bg-zinc-800 border-zinc-700' : 'bg-white border-slate-200'} rounded-2xl border flex flex-col items-center justify-center p-6 backface-hidden rotate-y-180 shadow-xl overflow-hidden relative h-full`}>
                                             {/* Background texture */}
                                             <div className={`absolute inset-0 opacity-5 bg-[radial-gradient(${isDark ? '#fff' : '#000'}_1px,transparent_1px)] [background-size:16px_16px]`}></div>
                                             
-                                            <span className={`text-[9px] ${t.accent} uppercase tracking-[0.2em] font-bold mb-3 relative z-10`}>解析详情</span>
-                                            <p className={`text-center font-light leading-relaxed ${isDark ? 'text-zinc-200' : 'text-slate-800'} text-xs relative z-10 line-clamp-5`}>{card.back}</p>
+                                            <span className={`text-[9px] ${t.accent} uppercase tracking-[0.2em] font-bold mb-3 relative z-10 shrink-0`}>解析详情</span>
+                                            <div className="flex-1 overflow-y-auto w-full no-scrollbar relative z-10 flex items-center justify-center">
+                                                <p className={`text-center font-light leading-relaxed ${isDark ? 'text-zinc-200' : 'text-slate-800'} text-xs w-full`}>{card.back}</p>
+                                            </div>
                                             
-                                            <div className="absolute bottom-4 w-full flex justify-center">
+                                            <div className="absolute bottom-4 w-full flex justify-center pointer-events-none shrink-0">
                                                 <div className={`h-1 w-12 ${isDark ? 'bg-zinc-600/50' : 'bg-slate-200'} rounded-full`}></div>
                                             </div>
                                         </div>
