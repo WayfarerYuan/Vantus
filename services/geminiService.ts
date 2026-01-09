@@ -33,7 +33,7 @@ const cleanMarkdown = (text: string): string => {
 
 // --- 1. Syllabus Generation ---
 export const generateSyllabus = async (topic: string): Promise<Syllabus> => {
-  const modelId = "gemini-3-flash-preview";
+  const modelId = "gemini-3-pro-preview";
   
   const response = await ai.models.generateContent({
     model: modelId,
@@ -95,7 +95,7 @@ export const generateSyllabus = async (topic: string): Promise<Syllabus> => {
 
 // --- 2. Lesson Content Generation (Optional Flashcards) ---
 export const generateLessonContent = async (topic: string, unitTitle: string): Promise<LessonContent> => {
-  const modelId = "gemini-3-flash-preview";
+  const modelId = "gemini-3-pro-preview";
 
   const prompt = `
     Task: Create engaging content for the lesson "${unitTitle}" in the course "${topic}".
@@ -202,7 +202,7 @@ export const generateLessonContent = async (topic: string, unitTitle: string): P
 
 // --- 3. Final Exam Generation ---
 export const generateFinalExam = async (topic: string): Promise<ExamContent> => {
-    const modelId = "gemini-3-flash-preview";
+    const modelId = "gemini-3-pro-preview";
     const response = await ai.models.generateContent({
         model: modelId,
         contents: `为课程 "${topic}" 生成一个结业挑战。
@@ -253,7 +253,7 @@ export const generateLessonImage = async (unitTitle: string, topic: string): Pro
       model: modelId,
       contents: {
         parts: [
-          { text: `Abstract 3D shape, soft lighting, pastel colors, symbolizing "${unitTitle}" in context of "${topic}". Clean, modern, high quality render, plain background.` }
+          { text: `Abstract 3D shape, soft lighting, pastel colors, symbolizing "${unitTitle}" in context of "${topic}". Clean, modern, high quality render, plain background. Don't include any text in the image.` }
         ]
       },
       config: {

@@ -235,7 +235,7 @@ const App = () => {
     setSyllabus(null);
     setCourseContent({});
     
-    setGenTasks([{ id: 'syllabus', label: '初始化神经图谱 (Initializing Neural Graph)', status: 'loading' }]);
+    setGenTasks([{ id: 'syllabus', label: '初始化知识架构 (Initializing Knowledge Architecture)', status: 'loading' }]);
     
     try {
       // 1. Generate Syllabus
