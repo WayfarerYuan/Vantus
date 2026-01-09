@@ -33,7 +33,7 @@ const cleanMarkdown = (text: string): string => {
 
 // --- 1. Syllabus Generation ---
 export const generateSyllabus = async (topic: string): Promise<Syllabus> => {
-  const modelId = "gemini-3-pro-preview";
+  const modelId = "gemini-3-flash-preview";
   
   const response = await ai.models.generateContent({
     model: modelId,
