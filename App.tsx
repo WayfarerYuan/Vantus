@@ -1,9 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { BookOpen, User, ChevronLeft, Layers, ArrowRight, Loader2, BookMarked, Trophy, Zap, Repeat, Check, BarChart3, Search, Play, Compass, Cpu, RefreshCw, Sparkles, BrainCircuit, Sun, Moon, Radar } from 'lucide-react';
+import { BookOpen, User, ChevronLeft, Layers, ArrowRight, Loader2, BookMarked, Trophy, Zap, Repeat, Check, BarChart3, Search, Play, Compass, Cpu, RefreshCw, Sparkles, BrainCircuit, Sun, Moon, Radar, LogOut } from 'lucide-react';
 import { generateSyllabus, generateLessonContent, generatePodcastAudio, generateLessonImage, generateFinalExam, generateCognitiveBriefing } from './services/geminiService';
 import { Syllabus, LessonContent, AppScreen, LessonMode, UnitType, SavedCourse, UnitContent, ExamContent, UserStats, UserProfileData } from './types';
 import { AudioPlayer } from './components/AudioPlayer';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { AuthPage } from './components/auth/AuthPage';
+import { trackEvent } from './services/analyticsService';
 
 const STORAGE_KEY = 'nexus_courses_v1';
 const PROFILE_KEY = 'nexus_profile_v1';
@@ -174,8 +177,9 @@ interface GenTask {
     parentId?: string; // For hierarchy
 }
 
-const App = () => {
+const AuthenticatedApp = () => {
   // --- State ---
+  const { session, signOut } = useAuth();
   const [isDark, setIsDark] = useState(true); // Theme State
   const [screen, setScreen] = useState<AppScreen>(AppScreen.HOME);
   const [topic, setTopic] = useState('');
@@ -285,6 +289,9 @@ const App = () => {
     const finalTopic = selectedTopic || topic;
     if (!finalTopic.trim()) return;
     
+    // Track generation start
+    trackEvent('COURSE_GENERATE_START', { topic: finalTopic });
+
     // If triggered by click, update input
     if (selectedTopic) setTopic(selectedTopic);
 
@@ -360,6 +367,11 @@ const App = () => {
       setCourseContent(newContentMap);
       saveCourse(syllabusData, newContentMap);
       
+      trackEvent('COURSE_GENERATE_SUCCESS', { 
+        topic: finalTopic, 
+        units: syllabusData.chapters.reduce((acc, c) => acc + c.units.length, 0) 
+      });
+
       setTimeout(() => {
           setIsGenerating(false);
           setScreen(AppScreen.SYLLABUS);
@@ -367,6 +379,7 @@ const App = () => {
 
     } catch (e) {
       console.error(e);
+      trackEvent('COURSE_GENERATE_FAIL', { topic: finalTopic, error: String(e) });
       alert("Something went wrong. Please try again.");
       setIsGenerating(false);
     }
@@ -389,6 +402,15 @@ const App = () => {
     setIsExamSubmitted(false);
     setFlashcardFlipped({});
     setScreen(AppScreen.LESSON);
+
+    const unit = syllabus?.chapters[chapterIdx]?.units[unitIdx];
+    if (unit) {
+        trackEvent('LESSON_START', { 
+            unitId: unit.id, 
+            unitTitle: unit.title,
+            type: unit.type 
+        });
+    }
   };
 
   const handleNextUnit = () => {
@@ -435,6 +457,12 @@ const App = () => {
       const isCorrect = content.quiz.correctOptionId === quizSelectedId;
       
       handleCognitiveUpdate('QUIZ', isCorrect ? 1 : 0, 1, syllabus.topic);
+      
+      trackEvent('QUIZ_SUBMIT', { 
+        unitId, 
+        correct: isCorrect, 
+        topic: syllabus.topic 
+      });
   };
 
   const handleExamSubmit = () => {
@@ -446,6 +474,13 @@ const App = () => {
       const score = content.questions.reduce((acc, q, i) => acc + (examAnswers[i] === q.correctOptionId ? 1 : 0), 0);
       
       handleCognitiveUpdate('EXAM', score, content.questions.length, syllabus.topic);
+
+      trackEvent('EXAM_SUBMIT', { 
+        unitId, 
+        score, 
+        total: content.questions.length,
+        topic: syllabus.topic 
+      });
   };
 
   // --- Renderers ---
@@ -541,6 +576,14 @@ const App = () => {
         </button>
 
         <div className="flex-1 flex flex-col items-center justify-center p-8 space-y-16 z-10">
+             {/* Logout (Temp Position) */}
+             <button 
+                onClick={() => signOut()}
+                className={`absolute top-6 left-6 z-50 p-2.5 rounded-full ${isDark ? 'bg-zinc-900/80 text-zinc-400 hover:text-red-400' : 'bg-white/80 text-slate-500 hover:text-red-500'} backdrop-blur-md border ${t.border} transition-all shadow-sm`}
+             >
+                <LogOut size={18} />
+             </button>
+
              <div className="text-center space-y-6 animate-fade-up flex flex-col items-center">
                  {/* Logo: Vantus (Compass) */}
                  <div className={`w-24 h-24 ${isDark ? 'bg-black/50' : 'bg-white/50'} backdrop-blur-sm border ${t.border} rounded-2xl flex items-center justify-center ${t.shadow} shadow-2xl relative group mb-4 rotate-45 hover:rotate-0 transition-transform duration-500`}>
@@ -602,12 +645,12 @@ const App = () => {
         
         {/* Simple Footer Branding */}
         <div className="absolute bottom-8 w-full text-center pointer-events-none flex flex-col items-center space-y-2">
-            <div className={`flex items-center justify-center space-x-2 text-[10px] ${t.textSecondary} font-mono tracking-[0.2em] opacity-80`}>
+            {/* <div className={`flex items-center justify-center space-x-2 text-[10px] ${t.textSecondary} font-mono tracking-[0.2em] opacity-80`}>
                 <Sparkles size={12} className={t.accent} />
                 <span>CREATION</span>
                 <span className={t.accent}>×</span>
                 <span>INTELLIGENCE</span>
-            </div>
+            </div> */}
             <p className={`text-[8px] ${t.textMuted} font-mono tracking-widest opacity-50 uppercase`}>
                 Powered by Intelligent Products & Services
             </p>
@@ -1193,4 +1236,27 @@ const App = () => {
   );
 };
 
-export default App;
+const AppWrapper = () => {
+    return (
+        <AuthProvider>
+            <AuthGuard />
+        </AuthProvider>
+    );
+};
+
+const AuthGuard = () => {
+    const { session, loading } = useAuth();
+    const [isDark, setIsDark] = useState(true);
+
+    if (loading) return (
+        <div className="min-h-screen bg-black flex items-center justify-center">
+            <Loader2 className="animate-spin text-emerald-500" size={32} />
+        </div>
+    );
+
+    if (!session) return <AuthPage onSuccess={() => {}} isDark={isDark} />;
+
+    return <AuthenticatedApp />;
+};
+
+export default AppWrapper;
