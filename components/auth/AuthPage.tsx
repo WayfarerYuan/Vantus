@@ -58,6 +58,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess, isDark }) => {
       }
       onSuccess();
     } catch (err: any) {
+      console.error("Auth Error Full Details:", err); // ADDED DEBUG LOG
       setError(err.message || 'An error occurred');
     } finally {
       setLoading(false);
